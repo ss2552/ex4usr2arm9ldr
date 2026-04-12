@@ -3,11 +3,9 @@
 #include "arm11.h"
 #include "fatfs/ff.h"
 
-#define LCD_REGS_BASE           0x10202000
-#define LCD_TOP_FILL_REG        *(vu32 *)(LCD_REGS_BASE + 0x200 + 4)
-#define LCD_BOTTOM_FILL_REG     *(vu32 *)(LCD_REGS_BASE + 0xA00 + 4)
-#define LCD_FILL_ENABLE         (1U << 24)
-u32 errchk_color = LCD_FILL_ENABLE | 0x000000;
+#define LCD_BOTTOM_FILL_REG     *(vu32 *)(0x10202A04)
+#define LCD_FILL_ENABLE(n)      ((1U << 24) | n)
+vu32 *errchk_color = (u32 *)0x10202204;
 
 #define CFG11_SHAREDWRAM_32K_DATA(i)    (*(vu8 *)(0x10140000 + i))
 #define CFG11_SHAREDWRAM_32K_CODE(i)    (*(vu8 *)(0x10140008 + i))
@@ -35,34 +33,24 @@ static const struct fb fbs[2] =
 
 static FATFS sdFs;
 
-static bool mountFs(void)
+static bool fileRead(void *dest)
 {
     if( f_mount(&sdFs, "0:", 1) == FR_OK ){
-         return true;
+         FIL f;
+         if(f_open(&f,"/SafeB9S.bin",1) == FR_OK){
+             u32 ret = 0;
+             if((FRESULT)f_read(&f,dest, (u32)0x100000, (unsigned int *)&ret) == FR_OK && ret != 0 ){
+                  return true;
+             }else{
+                   errchk_color = LCD_FILL_ENABLE(0xFFFF00);
+             }
+         }else{
+              errchk_color = LCD_FILL_ENABLE(0xFF00FF);
+         }
     }else{
-         errchk_color = LCD_FILL_ENABLE | 0x00FFFF;
-         return false;
+         errchk_color = LCD_FILL_ENABLE(0x00FFFF);
     }
-}
-
-static bool fileRead(void *dest, const char *path, u32 maxSize)
-{
-    FIL f;
-
-    if(f_open(&f,path,1) != FR_OK){
-        errchk_color = LCD_FILL_ENABLE | 0xFF00FF;
-        return false;
-    }
-
-    u32 ret = 0;
-    FRESULT result = f_read(&f,dest, maxSize, (unsigned int *)&ret);
-
-    if( result == FR_OK && ret != 0 ){
-        return true;
-    }else{
-        errchk_color = LCD_FILL_ENABLE | 0xFFFF00;
-        return false;
-     }
+     return false;
 }
 
 static void resetDSPAndSharedWRAMConfig(void)
@@ -88,7 +76,6 @@ static void resetDSPAndSharedWRAMConfig(void)
 
 static void doFirmlaunch(void)
 {
-    bool payloadRead = false;
 
     while(PXIReceiveWord() != 0x44836);
     PXISendWord(0x964536);
@@ -99,17 +86,12 @@ static void doFirmlaunch(void)
 
     while(PXIReceiveWord() != 0x44846);
 
-    if( mountFs() && fileRead((void *)0x23F00000, "/SafeB9S.bin", 0x100000) ){
-         payloadRead = true;
-    }
-
     *(vu32 *)0x1FFFFFF8 = 0;
     memcpy((void *)0x1FFFF400, arm11FirmlaunchStub, arm11FirmlaunchStubSize);
-    if(payloadRead){
+    if( fileRead((void *)0x23F00000) ){
         *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
     }else{
-        LCD_TOP_FILL_REG = errchk_color;
-        LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0x000000;
+        LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE(0);
         *(vu32 *)0x1FFFFFFC = 0x1FFFF404;
         while(true);
     }
