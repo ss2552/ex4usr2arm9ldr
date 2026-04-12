@@ -137,8 +137,6 @@ static void patchSvcReplyAndReceive11(void)
 
 void main(void)
 {
-    LCD_TOP_FILL_REG = LCD_FILL_ENABLE | 0xFFFFFF;
-    LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0xFFFFFF:
              
     memcpy((void *)0x23FFFE00, fbs, 2 * sizeof(struct fb));
     patchSvcReplyAndReceive11();
