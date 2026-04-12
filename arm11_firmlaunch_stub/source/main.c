@@ -72,6 +72,7 @@ typedef struct {
 
 void error(void)
 {
+     /*
      LED_MCU led;
      
      led.ani[0] = 0xFF;
@@ -93,7 +94,8 @@ void error(void)
          svcSendSyncRequest(serviceHandle);
          svcCloseHandle(serviceHandle);
     }
-     
+     */
+     LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0;
     while(true);
 }
 
