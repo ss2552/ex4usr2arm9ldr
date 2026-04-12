@@ -59,7 +59,7 @@ static bool fileRead(void *dest, const char *path, u32 maxSize)
 
     if( result == FR_OK && ret != 0 ){
         return true;
-    else{
+    }else{
         errchk_color = LCD_FILL_ENABLE | 0xFFFF00;
         return false;
      }
