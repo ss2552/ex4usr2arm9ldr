@@ -64,9 +64,8 @@ static void clearScreens(const struct fb *fb)
 
 void error(void)
 {
-    // Fill the screens with red
-    LCD_TOP_FILL_REG = LCD_FILL_ENABLE | 0xFF;
-    LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0xFF;
+    // LCD_TOP_FILL_REG = LCD_FILL_ENABLE | 0xFF;
+    // LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0xFF;
     while(true);
 }
 
