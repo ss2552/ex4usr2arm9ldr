@@ -33,26 +33,6 @@ static const struct fb fbs[2] =
 
 static FATFS sdFs;
 
-static bool fileRead(void *dest)
-{
-    if( f_mount(&sdFs, "0:", 1) == FR_OK ){
-         FIL f;
-         if(f_open(&f,"/SafeB9S.bin",1) == FR_OK){
-             u32 ret = 0;
-             if((FRESULT)f_read(&f,dest, (u32)0x100000, (unsigned int *)&ret) == FR_OK && ret != 0 ){
-                  return true;
-             }else{
-                   errchk_color = LCD_FILL_ENABLE(0xFFFF00);
-             }
-         }else{
-              errchk_color = LCD_FILL_ENABLE(0xFF00FF);
-         }
-    }else{
-         errchk_color = LCD_FILL_ENABLE(0x00FFFF);
-    }
-     return false;
-}
-
 static void resetDSPAndSharedWRAMConfig(void)
 {
     CFG11_DSP_CNT = 2; // PDN_DSP_CNT
@@ -84,17 +64,32 @@ static void doFirmlaunch(void)
     PXIReceiveWord(); // Low FIRM titleID
     resetDSPAndSharedWRAMConfig();
 
-    while(PXIReceiveWord() != 0x44846);
+     while(PXIReceiveWord() != 0x44846);
 
-    *(vu32 *)0x1FFFFFF8 = 0;
-    memcpy((void *)0x1FFFF400, arm11FirmlaunchStub, arm11FirmlaunchStubSize);
-    if( fileRead((void *)0x23F00000) ){
-        *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
+     *(vu32 *)0x1FFFFFF8 = 0;
+     memcpy((void *)0x1FFFF400, arm11FirmlaunchStub, arm11FirmlaunchStubSize);
+
+
+     
+     if( f_mount(&sdFs, "0:", 1) == FR_OK ){
+         FIL f;
+         if(f_open(&f,"/SafeB9S.bin",1) == FR_OK){
+             u32 ret = 0;
+             if((FRESULT)f_read(&f,(void *)0x23F00000, (u32)0x100000, (unsigned int *)&ret) == FR_OK && ret != 0 ){
+                  *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
+                  return void;
+             }else{
+                   errchk_color = LCD_FILL_ENABLE(0xFFFF00);
+             }
+         }else{
+              errchk_color = LCD_FILL_ENABLE(0xFF00FF);
+         }
     }else{
-        LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE(0);
-        *(vu32 *)0x1FFFFFFC = 0x1FFFF404;
-        while(true);
+         errchk_color = LCD_FILL_ENABLE(0x00FFFF);
     }
+     LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE(0);
+     *(vu32 *)0x1FFFFFFC = 0x1FFFF404;
+     while(true);
 }
 
 static void patchSvcReplyAndReceive11(void)
