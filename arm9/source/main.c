@@ -3,7 +3,6 @@
 #include "arm11.h"
 #include "fatfs/ff.h"
 
-#define LCD_BOTTOM_FILL_REG     *(vu32 *)(0x10202A04)
 #define LCD_FILL_ENABLE(n)      ((1U << 24) | n)
 vu32 *errchk_color = (u32 *)0x10202204;
 
@@ -87,7 +86,6 @@ static void doFirmlaunch(void)
     }else{
          errchk_color = LCD_FILL_ENABLE(0x00FFFF);
     }
-     LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE(0);
      *(vu32 *)0x1FFFFFFC = 0x1FFFF404;
      while(true);
 }
