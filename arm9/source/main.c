@@ -4,7 +4,7 @@
 #include "fatfs/ff.h"
 
 #define LCD_FILL_ENABLE(n)      ((1U << 24) | n)
-vu32 *errchk_color = (u32 *)0x10202204;
+vu32 *errchk_color = (vu32 *)0x10202204;
 
 #define CFG11_SHAREDWRAM_32K_DATA(i)    (*(vu8 *)(0x10140000 + i))
 #define CFG11_SHAREDWRAM_32K_CODE(i)    (*(vu8 *)(0x10140008 + i))
@@ -76,7 +76,7 @@ static void doFirmlaunch(void)
              u32 ret = 0;
              if((FRESULT)f_read(&f,(void *)0x23F00000, (u32)0x100000, (unsigned int *)&ret) == FR_OK && ret != 0 ){
                   *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
-                  return void;
+                  return;
              }else{
                    errchk_color = LCD_FILL_ENABLE(0xFFFF00);
              }
