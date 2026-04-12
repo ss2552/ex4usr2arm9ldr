@@ -64,8 +64,11 @@ static void clearScreens(const struct fb *fb)
 
 void error(void)
 {
-    // LCD_TOP_FILL_REG = LCD_FILL_ENABLE | 0xFF;
-    // LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0xFF;
+    if( LCD_TOP_FILL_REG == LCD_FILL_ENABLE | 0xFFFFFF){
+         LCD_TOP_FILL_REG = LCD_FILL_ENABLE | 0x999999;
+         LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0x999999;
+    }
+     
     while(true);
 }
 
