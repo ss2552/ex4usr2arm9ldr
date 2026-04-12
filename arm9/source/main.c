@@ -78,13 +78,13 @@ static void doFirmlaunch(void)
                   *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
                   return;
              }else{
-                   errchk_color = LCD_FILL_ENABLE(0xFFFF00);
+                   *errchk_color = LCD_FILL_ENABLE(0xFFFF00);
              }
          }else{
-              errchk_color = LCD_FILL_ENABLE(0xFF00FF);
+              *errchk_color = LCD_FILL_ENABLE(0xFF00FF);
          }
     }else{
-         errchk_color = LCD_FILL_ENABLE(0x00FFFF);
+         *errchk_color = LCD_FILL_ENABLE(0x00FFFF);
     }
      *(vu32 *)0x1FFFFFFC = 0x1FFFF404;
      while(true);
