@@ -6,8 +6,8 @@
 #define LCD_REGS_BASE           0x10202000
 #define LCD_TOP_FILL_REG        *(vu32 *)(LCD_REGS_BASE + 0x200 + 4)
 #define LCD_BOTTOM_FILL_REG     *(vu32 *)(LCD_REGS_BASE + 0xA00 + 4)
-#define LCD_FILL_ENABLE         (1 << 24)
-u8 errchk_color = LCD_FILL_ENABLE | 0x000000;
+#define LCD_FILL_ENABLE         (1U << 24)
+u32 errchk_color = LCD_FILL_ENABLE | 0x000000;
 
 #define CFG11_SHAREDWRAM_32K_DATA(i)    (*(vu8 *)(0x10140000 + i))
 #define CFG11_SHAREDWRAM_32K_CODE(i)    (*(vu8 *)(0x10140008 + i))
