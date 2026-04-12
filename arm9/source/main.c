@@ -7,6 +7,11 @@
 #define CFG11_SHAREDWRAM_32K_CODE(i)    (*(vu8 *)(0x10140008 + i))
 #define CFG11_DSP_CNT                   (*(vu8 *)0x10141230)
 
+#define LCD_FILL_ENABLE         (1u << 24)
+#define LCD_TOP_FILL_REG        *(vu32 *)(LCD_REGS_BASE + 0x200 + 4)
+#define LCD_BOTTOM_FILL_REG     *(vu32 *)(LCD_REGS_BASE + 0xA00 + 4)
+u8 errchk_color = LCD_FILL_ENABLE | 0x000000:
+
 struct fb {
      u8 *top_left;
      u8 *top_right;
@@ -31,25 +36,32 @@ static FATFS sdFs;
 
 static bool mountFs(void)
 {
-    return f_mount(&sdFs, "0:", 1) == FR_OK;
+    if( f_mount(&sdFs, "0:", 1) == FR_OK ){
+         return true;
+    }else{
+         errchk_color = LCD_FILL_ENABLE | 0x00FFFF;
+         return false;
+    }
 }
 
 static bool fileRead(void *dest, const char *path, u32 maxSize)
 {
-    FRESULT result = FR_OK;
     u32 ret = 0;
     FIL f;
 
-    if(f_open(&f,path,1) != FR_OK) return false;
+    if(f_open(&f,path,1) != FR_OK){
+        errchk_color = LCD_FILL_ENABLE | 0xFF00FF;
+        return false;
+    }
 
-    result = f_read(&f,dest, maxSize, (unsigned int *)&ret);
+    FRESULT result = f_read(&f,dest, maxSize, (unsigned int *)&ret);
 
-    return result == FR_OK && ret != 0;
-}
-
-static bool readPayload(void)
-{
-    return mountFs() && fileRead((void *)0x23F00000, "/SafeB9S.bin", 0x100000);
+    if( result == FR_OK && ret != 0 ){
+        return true;
+    else{
+        errchk_color = LCD_FILL_ENABLE | 0xFFFF00;
+        return false
+     }
 }
 
 static void resetDSPAndSharedWRAMConfig(void)
@@ -75,7 +87,7 @@ static void resetDSPAndSharedWRAMConfig(void)
 
 static void doFirmlaunch(void)
 {
-    bool payloadRead;
+    bool payloadRead = false;
 
     while(PXIReceiveWord() != 0x44836);
     PXISendWord(0x964536);
@@ -86,7 +98,9 @@ static void doFirmlaunch(void)
 
     while(PXIReceiveWord() != 0x44846);
 
-    payloadRead = readPayload();
+    if( mountFs() && fileRead((void *)0x23F00000, "/SafeB9S.bin", 0x100000) ){
+         payloadRead = true;
+    }
 
     *(vu32 *)0x1FFFFFF8 = 0;
     memcpy((void *)0x1FFFF400, arm11FirmlaunchStub, arm11FirmlaunchStubSize);
@@ -94,7 +108,9 @@ static void doFirmlaunch(void)
         *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
     else
     {
-        *(vu32 *)0x1FFFFFFC = 0x1FFFF404; // fill the screens with red
+        LCD_TOP_FILL_REG = errchk_color;
+        LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0x000000:
+        *(vu32 *)0x1FFFFFFC = 0x1FFFF404;
         while(true);
     }
 }
