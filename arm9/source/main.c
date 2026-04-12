@@ -7,9 +7,10 @@
 #define CFG11_SHAREDWRAM_32K_CODE(i)    (*(vu8 *)(0x10140008 + i))
 #define CFG11_DSP_CNT                   (*(vu8 *)0x10141230)
 
-#define LCD_FILL_ENABLE         (1u << 24)
+#define LCD_REGS_BASE           0x10202000
 #define LCD_TOP_FILL_REG        *(vu32 *)(LCD_REGS_BASE + 0x200 + 4)
 #define LCD_BOTTOM_FILL_REG     *(vu32 *)(LCD_REGS_BASE + 0xA00 + 4)
+#define LCD_FILL_ENABLE         (1u << 24)
 u8 errchk_color = LCD_FILL_ENABLE | 0x000000:
 
 struct fb {
@@ -136,6 +137,9 @@ static void patchSvcReplyAndReceive11(void)
 
 void main(void)
 {
+    LCD_TOP_FILL_REG = LCD_FILL_ENABLE | 0xFFFFFF;
+    LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0xFFFFFF:
+             
     memcpy((void *)0x23FFFE00, fbs, 2 * sizeof(struct fb));
     patchSvcReplyAndReceive11();
     doFirmlaunch();
