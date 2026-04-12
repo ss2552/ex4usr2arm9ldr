@@ -62,11 +62,36 @@ static void clearScreens(const struct fb *fb)
     while(!((REGs_PSC0[3] & 2) && (REGs_PSC1[3] & 2)));
 }
 
+typedef struct {
+    uint8_t ani[4];
+
+    uint8_t r[32];
+    uint8_t g[32];
+    uint8_t b[32];
+} LED_MCU;
+
 void error(void)
 {
-    if( LCD_TOP_FILL_REG & LCD_FILL_ENABLE){
-         LCD_TOP_FILL_REG = LCD_FILL_ENABLE | 0x999999;
-         LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0x999999;
+     LED_MCU led;
+     
+     led.ani[0] = 0xFF;
+     led.ani[1] = 0xFF;
+     led.ani[2] = 0xFF;
+     led.ani[3] = 0x00;
+
+     for (int i = 0; i < 32; i++) {
+          led.r[i] = 0xFF;
+          led.g[i] = 0xFF;
+          led.b[i] = 0x00;
+     }
+
+     Handle serviceHandle = 0;
+     if (srvGetServiceHandle(&serviceHandle, "ptm:sysm") == 0){
+         u32* ipc = getThreadCommandBuffer();
+         ipc[0] = 0x8010640;
+         memcpy(&ipc[1], &led, 0x64);
+         svcSendSyncRequest(serviceHandle);
+         svcCloseHandle(serviceHandle);
     }
      
     while(true);
