@@ -2,12 +2,8 @@
 .SUFFIXES:
 #---------------------------------------------------------------------------------
 
-ifeq ($(strip $(DEVKITARM)),)
-$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
-endif
-
 TOPDIR ?= $(CURDIR)
-include $(DEVKITARM)/base_rules
+include ../base_rules
 
 ifeq ($(strip $(VERSION_MINOR)),)
 	export VERSION_MINOR	:=	4
@@ -22,7 +18,7 @@ endif
 #---------------------------------------------------------------------------------
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCES		:=	source source/fatfs source/fatfs/sdmmc
+SOURCES		:=	source
 DATA		:=	data
 INCLUDES	:=	include
 
