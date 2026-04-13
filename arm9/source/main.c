@@ -75,8 +75,10 @@ static void doFirmlaunch(void)
          if(f_open(&f,"/SafeB9S.bin",1) == FR_OK){
              u32 ret = 0;
              if((FRESULT)f_read(&f,(void *)0x23F00000, (u32)0x100000, (unsigned int *)&ret) == FR_OK && ret != 0 ){
+                  
                   *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
                   return;
+                  
              }else{
                    *errchk_color = LCD_FILL_ENABLE(0xFFFF00);
              }
@@ -87,6 +89,8 @@ static void doFirmlaunch(void)
          *errchk_color = LCD_FILL_ENABLE(0x00FFFF);
     }
      *(vu32 *)0x1FFFFFFC = 0x1FFFF404;
+     while((~(*(volatile u32*)0x10146000) & BUTTON_ANY) & 0x00000FFF);
+     i2cWriteRegister(I2C_DEV_MCU, 0x20, 1 << 0);
      while(true);
 }
 
