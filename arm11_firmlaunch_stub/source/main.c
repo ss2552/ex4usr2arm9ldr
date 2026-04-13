@@ -21,14 +21,14 @@ struct fb {
 static const struct fb fbs[2] =
 {
     {
-        .top_left  = (u8 *)0x18300000,
-        .top_right = (u8 *)0x18300000,
-        .bottom    = (u8 *)0x18346500,
+        .top_left  = (u8 *)0x18000000,
+        .top_right = (u8 *)0x18000000,
+        .bottom    = (u8 *)0x18046500,
     },
     {
-        .top_left  = (u8 *)0x18400000,
-        .top_right = (u8 *)0x18400000,
-        .bottom    = (u8 *)0x18446500,
+        .top_left  = (u8 *)0x18000000,
+        .top_right = (u8 *)0x18000000,
+        .bottom    = (u8 *)0x18046500,
     },
 };
 
