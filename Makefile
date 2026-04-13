@@ -1,10 +1,6 @@
 rwildcard = $(foreach d, $(wildcard $1*), $(filter $(subst *, %, $2), $d) $(call rwildcard, $d/, $2))
 
-ifeq ($(strip $(DEVKITARM)),)
-$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
-endif
-
-include $(DEVKITARM)/3ds_rules
+include 3ds_rules
 
 CC := arm-none-eabi-gcc
 AS := arm-none-eabi-as
@@ -14,7 +10,7 @@ OC := arm-none-eabi-objcopy
 
 dir_source := source
 dir_arm9 := arm9
-dir_arm11_firmlaunch_stub := arm11_firmlaunch_stub
+dir_arm11_firmlaunch_stub := arm11
 dir_build := build
 dir_out := bin
 
@@ -27,22 +23,12 @@ objects = $(patsubst $(dir_source)/%.s, $(dir_build)/%.o, \
           $(call rwildcard, $(dir_source), *.s *.c)))
 
 .PHONY: all
-all: bin/arm11.bin
-
-.PHONY: clean
-clean:
-	@$(MAKE) -C $(dir_arm11_firmlaunch_stub) clean
-	@$(MAKE) -C $(dir_arm9) clean
-	@rm -rf $(dir_out) $(dir_build)
+all: $(dir_build)/main.bin
 
 .PHONY: $(dir_arm9)
 .PHONY: $(dir_arm11_firmlaunch_stub)
 
 .PRECIOUS: $(dir_build)/%.bin
-
-$(dir_out)/arm11.bin: $(dir_build)/main.bin
-	@mkdir -p "$(@D)"
-	@cp -a $(dir_build)/main.bin $@
 
 $(dir_build)/main.bin: $(dir_build)/main.elf
 	@mkdir -p "$(@D)"
