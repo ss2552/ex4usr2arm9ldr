@@ -1,10 +1,7 @@
 #include "types.h"
 #include "PXI.h"
 #include "arm11.h"
-#include "fatfs/ff.h"
-
-#define LCD_FILL_ENABLE(n)      ((1U << 24) | n)
-vu32 *errchk_color = (vu32 *)0x10202204;
+#include "petitfs/pff.h"
 
 #define CFG11_SHAREDWRAM_32K_DATA(i)    (*(vu8 *)(0x10140000 + i))
 #define CFG11_SHAREDWRAM_32K_CODE(i)    (*(vu8 *)(0x10140008 + i))
@@ -19,18 +16,40 @@ struct fb {
 static const struct fb fbs[2] =
 {
     {
-        .top_left  = (u8 *)0x18000000,
-        .top_right = (u8 *)0x18000000,
-        .bottom    = (u8 *)0x18046500,
+        .top_left  = (u8 *)0x18300000,
+        .top_right = (u8 *)0x18300000,
+        .bottom    = (u8 *)0x18346500,
     },
     {
-        .top_left  = (u8 *)0x18000000,
-        .top_right = (u8 *)0x18000000,
-        .bottom    = (u8 *)0x18046500,
+        .top_left  = (u8 *)0x18400000,
+        .top_right = (u8 *)0x18400000,
+        .bottom    = (u8 *)0x18446500,
     },
 };
 
 static FATFS sdFs;
+
+static bool mountFs(void)
+{
+    return pf_mount(&sdFs) == FR_OK;
+}
+
+static bool fileRead(void *dest, const char *path, u32 maxSize)
+{
+    FRESULT result = FR_OK;
+    u32 ret = 0;
+
+    if(pf_open(path) != FR_OK) return false;
+
+    result = pf_read(dest, maxSize, (unsigned int *)&ret);
+
+    return result == FR_OK && ret != 0;
+}
+
+static bool readPayload(void)
+{
+    return mountFs() && fileRead((void *)0x23F00000, "/arm9.bin", 0x100000);
+}
 
 static void resetDSPAndSharedWRAMConfig(void)
 {
@@ -55,6 +74,7 @@ static void resetDSPAndSharedWRAMConfig(void)
 
 static void doFirmlaunch(void)
 {
+    bool payloadRead;
 
     while(PXIReceiveWord() != 0x44836);
     PXISendWord(0x964536);
@@ -63,31 +83,19 @@ static void doFirmlaunch(void)
     PXIReceiveWord(); // Low FIRM titleID
     resetDSPAndSharedWRAMConfig();
 
-     while(PXIReceiveWord() != 0x44846);
+    while(PXIReceiveWord() != 0x44846);
 
-     *(vu32 *)0x1FFFFFF8 = 0;
-     memcpy((void *)0x1FFFF400, arm11FirmlaunchStub, arm11FirmlaunchStubSize);
+    payloadRead = readPayload();
 
-
-     
-     if( f_mount(&sdFs, "0:", 1) == FR_OK ){
-         FIL f;
-         if(f_open(&f,"/SafeB9S.bin",1) == FR_OK){
-             u32 ret = 0;
-             if((FRESULT)f_read(&f,(void *)0x23F00000, (u32)0x100000, (unsigned int *)&ret) == FR_OK && ret != 0 ){
-                  *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
-                  return;
-             }else{
-                   *errchk_color = LCD_FILL_ENABLE(0xFFFF00);
-             }
-         }else{
-              *errchk_color = LCD_FILL_ENABLE(0xFF00FF);
-         }
-    }else{
-         *errchk_color = LCD_FILL_ENABLE(0x00FFFF);
+    *(vu32 *)0x1FFFFFF8 = 0;
+    memcpy((void *)0x1FFFF400, arm11FirmlaunchStub, arm11FirmlaunchStubSize);
+    if(payloadRead)
+        *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
+    else
+    {
+        *(vu32 *)0x1FFFFFFC = 0x1FFFF404; // fill the screens with red
+        while(true);
     }
-     *(vu32 *)0x1FFFFFFC = 0x1FFFF404;
-     while(true);
 }
 
 static void patchSvcReplyAndReceive11(void)
@@ -106,12 +114,11 @@ static void patchSvcReplyAndReceive11(void)
     u32 *patch = (u32 *)(0x1FF80000 + svcTable[0x4F] - baseAddr);
     patch[0] = 0xE3A00000;
     patch[1] = 0xE51FF004;
-    patch[2] = svcTable[0x7C];
+    patch[2] = svcTable[0x7C];;
 }
 
 void main(void)
 {
-             
     memcpy((void *)0x23FFFE00, fbs, 2 * sizeof(struct fb));
     patchSvcReplyAndReceive11();
     doFirmlaunch();
