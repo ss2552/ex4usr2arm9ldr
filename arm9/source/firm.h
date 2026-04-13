@@ -20,19 +20,28 @@
 *   Notices displayed by works containing it.
 */
 
-/*
-*   waitInput function based on code by d0k3 https://github.com/d0k3/Decrypt9WIP/blob/master/source/hid.c
-*/
-
 #pragma once
 
 #include "types.h"
 
-#define TICKS_PER_SEC       67027964ULL
-#define REG_TIMER_CNT(i)    *(vu16 *)(0x10003002 + 4 * i)
-#define REG_TIMER_VAL(i)    *(vu16 *)(0x10003000 + 4 * i)
+typedef struct
+{
+    u32 offset;
+    u8 *address;
+    u32 size;
+    u32 procType;
+    u8 hash[0x20];
+} FirmSection;
 
-void NORETURN mcuPowerOff(void);
-void wait(u64 amount);
-void error(const char *fmt, ...);
-void mcuSetInfoLedPattern(u8 r, u8 g, u8 b, u32 periodMs, bool smooth);
+typedef struct
+{
+    char magic[4];
+    u32 reserved1;
+    u8 *arm11Entry;
+    u8 *arm9Entry;
+    u8 reserved2[0x30];
+    FirmSection section[4];
+} Firm;
+
+u32 checkFirmHeader(Firm *firmHeader, u32 firmBufferAddr, bool isPreLockout);
+bool checkSectionHashes(Firm *firm);

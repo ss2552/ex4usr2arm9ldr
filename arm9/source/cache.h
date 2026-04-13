@@ -20,19 +20,20 @@
 *   Notices displayed by works containing it.
 */
 
-/*
-*   waitInput function based on code by d0k3 https://github.com/d0k3/Decrypt9WIP/blob/master/source/hid.c
-*/
-
 #pragma once
 
 #include "types.h"
 
-#define TICKS_PER_SEC       67027964ULL
-#define REG_TIMER_CNT(i)    *(vu16 *)(0x10003002 + 4 * i)
-#define REG_TIMER_VAL(i)    *(vu16 *)(0x10003000 + 4 * i)
+void flushEntireDCache(void); //actually: "clean and flush"
+void flushEntireICache(void);
 
-void NORETURN mcuPowerOff(void);
-void wait(u64 amount);
-void error(const char *fmt, ...);
-void mcuSetInfoLedPattern(u8 r, u8 g, u8 b, u32 periodMs, bool smooth);
+void flushDCacheRangeImpl(void *startAddress, u32 size);
+void flushICacheRange(void *startAddress, u32 size);
+
+static inline void flushDCacheRange(void *startAddress, u32 size)
+{
+    if (size >= 0x4000)
+        flushEntireDCache();
+    else
+        flushDCacheRangeImpl(startAddress, size);
+}
