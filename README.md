@@ -4,3 +4,8 @@
 
 # issues
  - NDMAをジャックするか
+
+# Schedules.
+ - 例外処理
+ - リファクタリング
+ - Logger. writing to txt
