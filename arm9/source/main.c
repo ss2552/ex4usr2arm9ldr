@@ -1,122 +1,116 @@
+/*
+*   main.c
+*/
+
+#include <string.h>
+
 #include "types.h"
-#include "PXI.h"
-#include "arm11.h"
-#include "fatfs/ff.h"
+#include "crypto.h"
+#include "i2c.h"
+#include "fs.h"
+#include "firm.h"
+#include "utils.h"
+#include "buttons.h"
+#include "fatfs/sdmmc/unprotboot9_sdmmc.h"
+#include "ndma.h"
+#include "cache.h"
 
-#define LCD_FILL_ENABLE(n)      ((1U << 24) | n)
-vu32 *errchk_color = (vu32 *)0x10202204;
+#include "chainloader.h"
 
-#define CFG11_SHAREDWRAM_32K_DATA(i)    (*(vu8 *)(0x10140000 + i))
-#define CFG11_SHAREDWRAM_32K_CODE(i)    (*(vu8 *)(0x10140008 + i))
-#define CFG11_DSP_CNT                   (*(vu8 *)0x10141230)
+typedef enum FirmLoadStatus {
+    FIRM_LOAD_OK = 0,
+    FIRM_LOAD_CANT_READ, // can't mount, file missing or empty
+    FIRM_LOAD_CORRUPT,
+} FirmLoadStatus;
 
-struct fb {
-     u8 *top_left;
-     u8 *top_right;
-     u8 *bottom;
-} ;
+static volatile Arm11Operation *operation = (volatile Arm11Operation *)0x1FF80204;
+extern u8 __itcm_start__[], __itcm_lma__[], __itcm_bss_start__[], __itcm_end__[];
 
-static const struct fb fbs[2] =
+static void invokeArm11Function(Arm11Operation op)
 {
-    {
-        .top_left  = (u8 *)0x18000000,
-        .top_right = (u8 *)0x18000000,
-        .bottom    = (u8 *)0x18046500,
-    },
-    {
-        .top_left  = (u8 *)0x18000000,
-        .top_right = (u8 *)0x18000000,
-        .bottom    = (u8 *)0x18046500,
-    },
-};
-
-static FATFS sdFs;
-
-static void resetDSPAndSharedWRAMConfig(void)
-{
-    CFG11_DSP_CNT = 2; // PDN_DSP_CNT
-    for(volatile int i = 0; i < 10; i++);
-
-    CFG11_DSP_CNT = 3;
-    for(volatile int i = 0; i < 10; i++);
-
-    for(int i = 0; i < 8; i++)
-        CFG11_SHAREDWRAM_32K_DATA(i) = i << 2; // disabled, master = arm9
-
-    for(int i = 0; i < 8; i++)
-        CFG11_SHAREDWRAM_32K_CODE(i) = i << 2; // disabled, master = arm9
-
-    for(int i = 0; i < 8; i++)
-        CFG11_SHAREDWRAM_32K_DATA(i) = 0x80 | (i << 2); // enabled, master = arm9
-
-    for(int i = 0; i < 8; i++)
-        CFG11_SHAREDWRAM_32K_CODE(i) = 0x80 | (i << 2); // enabled, master = arm9
+    while(*operation != ARM11_READY);
+    *operation = op;
+    while(*operation != ARM11_READY); 
 }
 
-static void doFirmlaunch(void)
+static FirmLoadStatus loadFirm(Firm **outFirm)
 {
+    static const char *firmName = "boot.firm";
+    Firm *firmHeader = (Firm *)0x080A0000;
+    u32 rd = fileRead(firmHeader, firmName, 0x200, 0);
+    if (rd != 0x200)
+        return rd == 0 ? FIRM_LOAD_CANT_READ : FIRM_LOAD_CORRUPT;
 
-    while(PXIReceiveWord() != 0x44836);
-    PXISendWord(0x964536);
-    while(PXIReceiveWord() != 0x44837);
-    PXIReceiveWord(); // High FIRM titleID
-    PXIReceiveWord(); // Low FIRM titleID
-    resetDSPAndSharedWRAMConfig();
+    bool isPreLockout = ((firmHeader->reserved2[0] & 2) != 0);
+    if ((CFG9_SYSPROT9 & 1) != 0 || (CFG9_SYSPROT11 & 1) != 0)
+        isPreLockout = false;
+    Firm *firm;
+    u32 maxFirmSize;
 
-     while(PXIReceiveWord() != 0x44846);
+    if(!isPreLockout)
+    {
+        //Lockout
+        while(!(CFG9_SYSPROT9  & 1)) CFG9_SYSPROT9  |= 1;
+        while(!(CFG9_SYSPROT11 & 1)) CFG9_SYSPROT11 |= 1;
+        invokeArm11Function(WAIT_BOOTROM11_LOCKED);
 
-     *(vu32 *)0x1FFFFFF8 = 0;
-     memcpy((void *)0x1FFFF400, arm11FirmlaunchStub, arm11FirmlaunchStubSize);
-
-
-     
-     if( f_mount(&sdFs, "0:", 1) == FR_OK ){
-         FIL f;
-         if(f_open(&f,"/SafeB9S.bin",1) == FR_OK){
-             u32 ret = 0;
-             if((FRESULT)f_read(&f,(void *)0x23F00000, (u32)0x100000, (unsigned int *)&ret) == FR_OK && ret != 0 ){
-                  
-                  *(vu32 *)0x1FFFFFFC = 0x1FFFF400;
-                  return;
-                  
-             }else{
-                   *errchk_color = LCD_FILL_ENABLE(0xFFFF00);
-             }
-         }else{
-              *errchk_color = LCD_FILL_ENABLE(0xFF00FF);
-         }
-    }else{
-         *errchk_color = LCD_FILL_ENABLE(0x00FFFF);
+        firm = (Firm *)0x20001000;
+        maxFirmSize = 0x07FFF000; //around 127MB (although we don't enable ext FCRAM on N3DS, beware!)
     }
-     *(vu32 *)0x1FFFFFFC = 0x1FFFF404;
-     while((~(*(volatile u32*)0x10146000) & BUTTON_ANY) & 0x00000FFF);
-     i2cWriteRegister(I2C_DEV_MCU, 0x20, 1 << 0);
-     while(true);
+    else
+    {
+        //Uncached area, shouldn't affect performance too much, though
+        firm = (Firm *)0x18000000;
+        maxFirmSize = 0x300000; //3MB
+    }
+
+    *outFirm = firm;
+
+    u32 calculatedFirmSize = checkFirmHeader(firmHeader, (u32)firm, isPreLockout);
+
+    if(!calculatedFirmSize || fileRead(firm, firmName, 0, maxFirmSize) < calculatedFirmSize || !checkSectionHashes(firm))
+        return FIRM_LOAD_CORRUPT;
+    else
+        return FIRM_LOAD_OK;
 }
 
-static void patchSvcReplyAndReceive11(void)
+static void bootFirm(Firm *firm, bool isNand)
 {
-    /*
-       Basically, we're patching svc 0x4F's contents to svcKernelSetState(0, (u64)<dontcare>).
-       Assumption: kernel .text is in the same 64KB as the first SVCs.
-    */
-    u32 *off, *svcTable;
+    bool isScreenInit = (firm->reserved2[0] & 1) != 0;
+    if(isScreenInit)
+    {
+        invokeArm11Function(INIT_SCREENS);
+        I2C_writeReg(I2C_DEV_MCU, 0x22, 0x2A); //Turn on backlight
+    }
 
-    for(off = (u32 *)0x1FF80000; off[0] != 0xF96D0513 || off[1] != 0xE94D6F00; off++);
-    for(; *off != 0; off++);
-    svcTable = off;
+    memcpy(__itcm_start__, __itcm_lma__, __itcm_bss_start__ - __itcm_start__);
+    memset(__itcm_bss_start__, 0, __itcm_end__ - __itcm_bss_start__);
 
-    u32 baseAddr = svcTable[1] & ~0xFFFF;
-    u32 *patch = (u32 *)(0x1FF80000 + svcTable[0x4F] - baseAddr);
-    patch[0] = 0xE3A00000;
-    patch[1] = 0xE51FF004;
-    patch[2] = svcTable[0x7C];
+    //Launch firm
+    invokeArm11Function(PREPARE_ARM11_FOR_FIRMLAUNCH);
+    __dsb();
+
+    flushEntireDCache();
+    chainload(firm, isNand);
+    __builtin_unreachable();
 }
 
-void main(void)
+void arm9Main(void)
 {
-             
-    memcpy((void *)0x23FFFE00, fbs, 2 * sizeof(struct fb));
-    patchSvcReplyAndReceive11();
-    doFirmlaunch();
+    Firm *firm = NULL;
+
+    setupKeyslots();
+    ndmaInit();
+    unprotboot9_sdmmc_initialize();
+
+    unmountSd();
+    unmountCtrNand();
+
+    if (mountSd() && loadFirm(&firm) == FIRM_LOAD_OK){
+          bootFirm(firm, sdStatus != FIRM_LOAD_OK);
+    }else{
+        mcuPowerOff();
+    }
+
+    __builtin_unreachable();
 }
