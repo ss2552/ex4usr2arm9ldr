@@ -11,7 +11,6 @@
 #include "firm.h"
 #include "utils.h"
 #include "buttons.h"
-#include "fatfs/sdmmc/unprotboot9_sdmmc.h"
 #include "ndma.h"
 #include "cache.h"
 
@@ -93,6 +92,22 @@ static void bootFirm(Firm *firm, bool isNand)
     flushEntireDCache();
     chainload(firm, isNand);
     __builtin_unreachable();
+}
+
+s32 unprotboot9_sdmmc_initialize(){
+	void (*funcptr_cleardtcm)() = (void*)0xffff01b0;
+	void (*funcptr_boot9init)() = (void*)0xffff1ff9;
+	s32 (*funcptr_mmcinit)() = (void*)0xffff56c9;
+
+	*((u16*)0x10000020) |= 0x200;//If not set, the hardware will not detect any inserted card on the sdbus.
+	*((u16*)0x10000020) &= ~0x1;//If set while bitmask 0x200 is set, a sdbus command timeout error will occur during sdbus init.
+
+	funcptr_cleardtcm();
+	*((u32*)(0xfff0009c+0x1c)) = 1;//Initialize the sdmmc busid.
+
+	funcptr_boot9init();//General boot9 init function.
+
+	return funcptr_mmcinit();
 }
 
 void arm9Main(void)
