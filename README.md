@@ -1,1 +1,7 @@
+quick memo.
 
+sourceでsha256のsyscall関数をarm9にオーバーライド
+arm9からarm11をメモリへ展開しメモリへアドレスを渡す
+
+issues
+NDMAをジャックするか
