@@ -21,14 +21,14 @@ struct fb {
 static const struct fb fbs[2] =
 {
     {
-        .top_left  = (u8 *)0x18000000,
-        .top_right = (u8 *)0x18000000,
-        .bottom    = (u8 *)0x18046500,
+        .top_left  = (u8 *)0x18300000,
+        .top_right = (u8 *)0x18300000,
+        .bottom    = (u8 *)0x18346500,
     },
     {
-        .top_left  = (u8 *)0x18000000,
-        .top_right = (u8 *)0x18000000,
-        .bottom    = (u8 *)0x18046500,
+        .top_left  = (u8 *)0x18400000,
+        .top_right = (u8 *)0x18400000,
+        .bottom    = (u8 *)0x18446500,
     },
 };
 
@@ -62,40 +62,11 @@ static void clearScreens(const struct fb *fb)
     while(!((REGs_PSC0[3] & 2) && (REGs_PSC1[3] & 2)));
 }
 
-typedef struct {
-    uint8_t ani[4];
-
-    uint8_t r[32];
-    uint8_t g[32];
-    uint8_t b[32];
-} LED_MCU;
-
 void error(void)
 {
-     /*
-     LED_MCU led;
-     
-     led.ani[0] = 0xFF;
-     led.ani[1] = 0xFF;
-     led.ani[2] = 0xFF;
-     led.ani[3] = 0x00;
-
-     for (int i = 0; i < 32; i++) {
-          led.r[i] = 0xFF;
-          led.g[i] = 0xFF;
-          led.b[i] = 0x00;
-     }
-
-     Handle serviceHandle = 0;
-     if (srvGetServiceHandle(&serviceHandle, "ptm:sysm") == 0){
-         u32* ipc = getThreadCommandBuffer();
-         ipc[0] = 0x8010640;
-         memcpy(&ipc[1], &led, 0x64);
-         svcSendSyncRequest(serviceHandle);
-         svcCloseHandle(serviceHandle);
-    }
-     */
-     LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0;
+    // Fill the screens with red
+    LCD_TOP_FILL_REG = LCD_FILL_ENABLE | 0xFF;
+    LCD_BOTTOM_FILL_REG = LCD_FILL_ENABLE | 0xFF;
     while(true);
 }
 
