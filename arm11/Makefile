@@ -2,12 +2,8 @@
 .SUFFIXES:
 #---------------------------------------------------------------------------------
 
-ifeq ($(strip $(DEVKITARM)),)
-$(error "Please set DEVKITARM in your environment. export DEVKITARM=<path to>devkitARM")
-endif
-
 TOPDIR ?= $(CURDIR)
-include $(DEVKITARM)/base_rules
+include ../base_rules
 
 #---------------------------------------------------------------------------------
 # TARGET is the name of the output
@@ -64,8 +60,6 @@ export VPATH	:=	$(foreach dir,$(SOURCES),$(CURDIR)/$(dir)) \
 			$(foreach dir,$(DATA),$(CURDIR)/$(dir))
 
 export DEPSDIR	:=	$(CURDIR)/$(BUILD)
-
-export APP_TITLE	:=	$(notdir $(TOPDIR)/..)
 
 CFILES		:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.c)))
 CPPFILES	:=	$(foreach dir,$(SOURCES),$(notdir $(wildcard $(dir)/*.cpp)))
