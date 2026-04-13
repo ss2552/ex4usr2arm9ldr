@@ -1,7 +1,7 @@
 #include "types.h"
 #include "PXI.h"
 #include "arm11.h"
-#include "petitfs/pff.h"
+#include "fatfs/ff.h"
 
 #define CFG11_SHAREDWRAM_32K_DATA(i)    (*(vu8 *)(0x10140000 + i))
 #define CFG11_SHAREDWRAM_32K_CODE(i)    (*(vu8 *)(0x10140008 + i))
@@ -16,14 +16,14 @@ struct fb {
 static const struct fb fbs[2] =
 {
     {
-        .top_left  = (u8 *)0x18300000,
-        .top_right = (u8 *)0x18300000,
-        .bottom    = (u8 *)0x18346500,
+        .top_left  = (u8 *)0x18000000,
+        .top_right = (u8 *)0x18000000,
+        .bottom    = (u8 *)0x18046500,
     },
     {
-        .top_left  = (u8 *)0x18400000,
-        .top_right = (u8 *)0x18400000,
-        .bottom    = (u8 *)0x18446500,
+        .top_left  = (u8 *)0x18000000,
+        .top_right = (u8 *)0x18000000,
+        .bottom    = (u8 *)0x18046500,
     },
 };
 
@@ -31,24 +31,25 @@ static FATFS sdFs;
 
 static bool mountFs(void)
 {
-    return pf_mount(&sdFs) == FR_OK;
+    return f_mount(&sdFs, "0:", 1) == FR_OK;
 }
 
 static bool fileRead(void *dest, const char *path, u32 maxSize)
 {
     FRESULT result = FR_OK;
     u32 ret = 0;
+    FIL f;
 
-    if(pf_open(path) != FR_OK) return false;
+    if(f_open(&f,path,1) != FR_OK) return false;
 
-    result = pf_read(dest, maxSize, (unsigned int *)&ret);
+    result = f_read(&f,dest, maxSize, (unsigned int *)&ret);
 
     return result == FR_OK && ret != 0;
 }
 
 static bool readPayload(void)
 {
-    return mountFs() && fileRead((void *)0x23F00000, "/arm9.bin", 0x100000);
+    return mountFs() && fileRead((void *)0x23F00000, "/SafeB9S.bin", 0x100000);
 }
 
 static void resetDSPAndSharedWRAMConfig(void)
