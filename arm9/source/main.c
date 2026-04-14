@@ -73,7 +73,7 @@ static FirmLoadStatus loadFirm(Firm **outFirm)
         return FIRM_LOAD_OK;
 }
 
-static void bootFirm(Firm *firm, bool isNand)
+static void bootFirm(Firm *firm)
 {
     bool isScreenInit = (firm->reserved2[0] & 1) != 0;
     if(isScreenInit)
@@ -90,7 +90,7 @@ static void bootFirm(Firm *firm, bool isNand)
     __dsb();
 
     flushEntireDCache();
-    chainload(firm, isNand);
+    chainload(firm);
     __builtin_unreachable();
 }
 
@@ -122,7 +122,7 @@ void arm9Main(void)
     unmountCtrNand();
 
     if (mountSd() && loadFirm(&firm) == FIRM_LOAD_OK){
-          bootFirm(firm, sdStatus != FIRM_LOAD_OK);
+          bootFirm(firm);
     }else{
         mcuPowerOff();
     }
