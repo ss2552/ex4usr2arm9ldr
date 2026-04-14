@@ -41,7 +41,7 @@ static void launchFirm(const Firm *firm, int argc, char **argv)
     __builtin_unreachable();
 }
 
-void chainloaderMain(const Firm *firm, bool isNand)
+void chainloaderMain(const Firm *firm)
 {
     u32 argc;
     char *argv[2] = {0};
@@ -59,7 +59,7 @@ void chainloaderMain(const Firm *firm, bool isNand)
         },
     };
 
-    argv[0] = isNand ? "nand:/boot.firm" : "sdmc:/boot.firm";
+    argv[0] = "sdmc:/boot.firm";
 
     if(firm->reserved2[0] & 1)
     {
